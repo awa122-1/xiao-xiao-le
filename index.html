@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>姓氏消消乐</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f4f4f4;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+
+    .controls {
+      margin: 20px;
+    }
+
+    .board {
+      display: grid;
+      margin: 0 auto;
+      gap: 5px;
+    }
+
+    .cell {
+      width: 50px;
+      height: 50px;
+      background: #fff;
+      border: 2px solid #ccc;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .cell.selected {
+      background: #ffeb3b;
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>姓氏消消乐</h1>
+
+  <div class="controls">
+    <label for="difficulty">选择难度：</label>
+    <select id="difficulty">
+      <option value="5">简单 (5x5)</option>
+      <option value="7">中等 (7x7)</option>
+      <option value="9">困难 (9x9)</option>
+    </select>
+    <button id="startBtn">开始游戏</button>
+  </div>
+
+  <div id="board" class="board"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const surnames = ['张', '王', '李', '赵', '刘', '陈', '杨', '黄'];
+      let board = [];
+      let size = 5;
+      let selected = null;
+
+      const boardEl = document.getElementById('board');
+      const startBtn = document.getElementById('startBtn');
+
+      startBtn.addEventListener('click', startGame);
+
+      function startGame() {
+        size = parseInt(document.getElementById('difficulty').value);
+        board = [];
+        selected = null;
+        boardEl.style.gridTemplateColumns = `repeat(${size}, 50px)`;
+        boardEl.innerHTML = '';
+
+        // 初始化棋盘
+        for (let i = 0; i < size; i++) {
+          board[i] = [];
+          for (let j = 0; j < size; j++) {
+            const surname = randomSurname();
+            board[i][j] = surname;
+            const cell = createCell(i, j, surname);
+            boardEl.appendChild(cell);
+          }
+        }
+      }
+
+      function randomSurname() {
+        return surnames[Math.floor(Math.random() * surnames.length)];
+      }
+
+      function createCell(row, col, value) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.textContent = value;
+        cell.dataset.row = row;
+        cell.dataset.col = col;
+        cell.addEventListener('click', () => handleClick(row, col, cell));
+        return cell;
+      }
+
+      function handleClick(row, col, cellEl) {
+        if (board[row][col] === '') return; // 被消除了
+
+        if (selected) {
+          const [prevRow, prevCol] = selected;
+          const prevCellEl = document.querySelector(`.cell[data-row="${prevRow}"][data-col="${prevCol}"]`);
+
+          if (prevRow === row && prevCol === col) {
+            // 同一个格子，取消选择
+            cellEl.classList.remove('selected');
+            selected = null;
+            return;
+          }
+
+          // 判断是否相邻且相同
+          if (isAdjacent(prevRow, prevCol, row, col) && board[prevRow][prevCol] === board[row][col]) {
+            // 消除两个格子
+            board[prevRow][prevCol] = '';
+            board[row][col] = '';
+            prevCellEl.textContent = '';
+            cellEl.textContent = '';
+            prevCellEl.classList.remove('selected');
+            cellEl.classList.remove('selected');
+            selected = null;
+
+            // 触发下落和补充
+            setTimeout(() => {
+              applyGravity();
+              refillBoard();
+            }, 200);
+          } else {
+            // 切换选择
+            prevCellEl.classList.remove('selected');
+            cellEl.classList.add('selected');
+            selected = [row, col];
+          }
+        } else {
+          cellEl.classList.add('selected');
+          selected = [row, col];
+        }
+      }
+
+      function isAdjacent(r1, c1, r2, c2) {
+        return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
+      }
+
+      function applyGravity() {
+        for (let col = 0; col < size; col++) {
+          for (let row = size - 1; row >= 0; row--) {
+            if (board[row][col] === '') {
+              // 查找上方非空
+              for (let k = row - 1; k >= 0; k--) {
+                if (board[k][col] !== '') {
+                  board[row][col] = board[k][col];
+                  board[k][col] = '';
+                  updateCell(row, col);
+                  updateCell(k, col);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      function refillBoard() {
+        for (let i = 0; i < size; i++) {
+          for (let j = 0; j < size; j++) {
+            if (board[i][j] === '') {
+              board[i][j] = randomSurname();
+              updateCell(i, j);
+            }
+          }
+        }
+      }
+
+      function updateCell(row, col) {
+        const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        cell.textContent = board[row][col];
+      }
+ 
